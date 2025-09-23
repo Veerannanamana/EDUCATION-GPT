@@ -14,7 +14,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
 /* Body */
-body { display: flex; height: 100vh; background: #e0f0ff; overflow: hidden; }
+body {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    background: #e0f0ff;
+    overflow: hidden;
+}
 
 /* Sidebar */
 #sidebar {
@@ -68,6 +74,8 @@ header {
     gap: 10px;
     scroll-behavior: smooth;
 }
+
+/* Messages */
 .message {
     max-width: 70%;
     padding: 12px 18px;
@@ -79,40 +87,39 @@ header {
 .user { background: #4a76a8; color: #fff; margin-left: auto; text-align: right; }
 .bot { background: #dcefff; color: #000; margin-right: auto; text-align: left; border: 1px solid #a0c4ff; }
 
-/* Code Block Styling */
+/* Code Block */
 .message pre { background: #f0f8ff; padding: 10px; border-radius: 15px; overflow-x: auto; }
 .message code { font-family: monospace; font-size: 0.9rem; }
 
 /* Chat Form */
 form {
     display: flex;
-    padding: 15px 20px;
+    padding: 10px 15px;
     background: #fff;
     border-top: 1px solid #ccc;
+    flex-shrink: 0;
 }
 input {
     flex: 1;
-    padding: 12px 18px;
+    padding: 12px 15px;
     border-radius: 25px;
     border: 1px solid #ccc;
     font-size: 1rem;
-    margin-right: 10px;
     outline: none;
 }
 input:focus { border-color: #4a76a8; }
 button#send-btn {
-    padding: 12px 25px;
+    padding: 12px 20px;
     border-radius: 25px;
     border: none;
     background: #4a76a8;
     color: #fff;
     cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.3s;
+    margin-left: 10px;
 }
 button#send-btn:hover { background: #365f91; }
 
-/* Logout Modal */
+/* Logout modal */
 #logout-modal {
     position: fixed;
     top: 0; left: 0;
@@ -148,13 +155,13 @@ button.confirm:hover { background: #365f91; }
     #sidebar {
         width: 100%;
         flex-direction: row;
-        justify-content: space-around;
-        padding: 10px;
         overflow-x: auto;
+        padding: 5px;
+        justify-content: space-around;
     }
     #sidebar h2 { display: none; }
-    #sidebar button { flex: 1; margin: 0 5px; font-size: 0.9rem; padding: 10px; white-space: nowrap; }
-    #main { height: calc(100vh - 60px); }
+    #sidebar button { flex: 1; margin: 0 5px; white-space: nowrap; font-size: 0.9rem; padding: 8px; }
+    #main { height: calc(100vh - 50px); }
     #chat-box { padding: 10px; }
     form { padding: 10px; }
 }
@@ -173,9 +180,7 @@ button.confirm:hover { background: #365f91; }
 <!-- Main Chat Area -->
 <div id="main">
     <header>Chat with Text-based AI</header>
-
     <div id="chat-box"></div>
-
     <form id="chat-form">
         <input type="text" id="message" placeholder="Type your message..." autocomplete="off" required />
         <button type="submit" id="send-btn">Send</button>
