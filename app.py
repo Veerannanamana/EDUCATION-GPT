@@ -6,29 +6,34 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from pymongo.errors import ServerSelectionTimeoutError
 
 load_dotenv()
 
+# ----------------- Flask App Setup -----------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "fallback_secret")
 app.config["MONGO_URI"] = os.getenv("MONGO_URI")
 
+# Enable CORS for frontend
 CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
 
+# Session configuration
 app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=False
 )
 
+# Initialize PyMongo
 mongo = PyMongo(app)
 app.db = mongo.cx[os.getenv("DB_NAME", "CHAT")]
 app.users_collection = app.db["users"]
 app.history_collection = app.db["history"]
 
+# Gemini API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-
-# ---------------- Helper ----------------
+# ----------------- Helper Functions -----------------
 def safe_str(val):
     if isinstance(val, str):
         return val
@@ -43,8 +48,7 @@ def safe_str(val):
     except Exception:
         return repr(val)
 
-
-# ---------------- Gemini Chat ----------------
+# ----------------- Gemini Chat -----------------
 def get_gemini_reply(user_input: str) -> str:
     if not GEMINI_API_KEY:
         return "Error: Missing GEMINI_API_KEY"
@@ -66,24 +70,16 @@ def get_gemini_reply(user_input: str) -> str:
     except Exception as e:
         return safe_str(f"Error: {e}")
 
-
-# ---------------- ROUTES ----------------
-
-# Home/Login Page
+# ----------------- Routes -----------------
 @app.route("/")
 def home():
     if "user_id" in session:
-        # Already logged in → go to chat
         return redirect(url_for("chat_page"))
-    # Not logged in → show login page
     return render_template("index.html")
 
-
-# Signup Page
 @app.route("/signup", methods=["GET", "POST"])
 def signup_page():
     if "user_id" in session:
-        # Already logged in → go to chat
         return redirect(url_for("chat_page"))
 
     if request.method == "POST":
@@ -101,13 +97,10 @@ def signup_page():
             "password": hashed_pw,
             "created_at": datetime.now(timezone.utc)
         })
-        # Signup successful → redirect to login page
         return redirect(url_for("home"))
 
     return render_template("signup.html")
 
-
-# Login Handler
 @app.route("/login", methods=["POST"])
 def login_page():
     username = request.form.get("username")
@@ -121,19 +114,14 @@ def login_page():
 
     return "Invalid credentials", 401
 
-
-# Logout
 @app.route("/logout")
 def logout():
     session.pop("user_id", None)
     return redirect(url_for("home"))
 
-
-# Chat Page
 @app.route("/chat", methods=["GET", "POST"])
 def chat_page():
     if "user_id" not in session:
-        # Not logged in → redirect to login
         return redirect(url_for("home"))
 
     if request.method == "POST":
@@ -145,28 +133,33 @@ def chat_page():
         reply_str = safe_str(reply)
 
         # Save to history
-        app.history_collection.insert_one({
-            "user_id": session["user_id"],
-            "question": safe_str(user_input),
-            "answer": reply_str,
-            "timestamp": datetime.now(timezone.utc)
-        })
+        try:
+            app.history_collection.insert_one({
+                "user_id": session["user_id"],
+                "question": safe_str(user_input),
+                "answer": reply_str,
+                "timestamp": datetime.now(timezone.utc)
+            })
+        except ServerSelectionTimeoutError:
+            return jsonify({"reply": "Error: Cannot connect to MongoDB"}), 500
+
         return jsonify({"reply": reply_str})
 
     return render_template("chat.html")
 
-
-# Fetch Chat History
 @app.route("/chat/history")
 def chat_history():
     if "user_id" not in session:
         return jsonify([])
-    history = list(app.history_collection.find({"user_id": session["user_id"]}).sort("timestamp", 1))
-    formatted = [{"question": h["question"], "answer": h["answer"]} for h in history]
-    return jsonify(formatted)
 
+    try:
+        history = list(app.history_collection.find({"user_id": session["user_id"]}).sort("timestamp", 1))
+        formatted = [{"question": h["question"], "answer": h["answer"]} for h in history]
+        return jsonify(formatted)
+    except ServerSelectionTimeoutError:
+        return jsonify({"error": "Cannot connect to MongoDB"}), 500
 
-# ---------------- RUN SERVER ----------------
+# ----------------- Run Server -----------------
 if __name__ == "__main__":
     debug = os.getenv("FLASK_ENV") == "development"
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=debug)
